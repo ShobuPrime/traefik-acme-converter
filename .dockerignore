@@ -1,0 +1,33 @@
+# Git files
+.git
+.gitignore
+.github
+
+# Documentation
+README.md
+DOCKER_HUB_SETUP.md
+LICENSE
+
+# Test files
+*_test.go
+
+# Build artifacts
+traefik-acme-converter
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+
+# Output directories
+output/
+certs/

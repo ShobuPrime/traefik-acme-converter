@@ -28,10 +28,6 @@ FROM alpine:latest
 # Install ca-certificates for HTTPS and tzdata for timezone support
 RUN apk --no-cache add ca-certificates tzdata
 
-# Create non-root user
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
-
 # Set working directory
 WORKDIR /app
 
@@ -39,11 +35,17 @@ WORKDIR /app
 COPY --from=builder /build/traefik-acme-converter /app/traefik-acme-converter
 
 # Create default directories
-RUN mkdir -p /traefik/certs /app/output && \
-    chown -R appuser:appuser /app /traefik/certs /app/output
+RUN mkdir -p /traefik/certs /app/output
 
-# Switch to non-root user (can be overridden at runtime)
-USER appuser
+# Run as root by default to allow chown operations
+# Users can override with --user flag if they want to run as non-root
+
+# Add OCI labels for supply chain attestation
+LABEL org.opencontainers.image.source="https://github.com/ShobuPrime/traefik-acme-converter" \
+      org.opencontainers.image.description="Traefik ACME certificate converter with fsnotify (ARM64)" \
+      org.opencontainers.image.licenses="GPL-3.0" \
+      org.opencontainers.image.title="traefik-acme-converter" \
+      org.opencontainers.image.vendor="ShobuPrime"
 
 # Set default environment variables
 ENV WATCH_DIR=/traefik/certs \
