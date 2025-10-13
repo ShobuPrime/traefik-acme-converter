@@ -1,12 +1,32 @@
-version: '3'
 services:
-  acme-sidecar:
+  acme-converter:
     image: shobuprime/traefik-acme-converter
+    container_name: traefik-acme-converter
     environment:
+      # Directory containing the ACME JSON file
       - WATCH_DIR=/certs
-      - PROVIDER_PATH=.cloudflare.Certificates[]
-      - DOMAIN=*.example.com
-      - ACME_FILE_NAME=cloudflare.json
+
+      # Provider name (matches the key in your ACME JSON)
+      # The ACME file is automatically set to ${PROVIDER}.json (e.g., cloudflare.json)
+      - PROVIDER=cloudflare
+
+      # Output directory for extracted certificates
+      - OUTPUT_DIR=/app/output
+
+      # UID/GID for certificate file ownership
+      - USER_UID=1000
+      - USER_GID=1000
+
+      # Optional: Periodic fallback check for resiliency (catches missed fsnotify events)
+      # Default: 0 (disabled) - relies purely on fsnotify for instant updates
+      # - INTERVAL=3600
+
+      # Optional: Enable debug logging
+      # - DEBUG=true
     volumes:
+      # Mount Traefik's certificate directory (read-only recommended)
       - /custom/example/certs:/certs:ro
+
+      # Mount output directory for extracted certificates
       - /custom/example/_ssl/:/app/output
+    restart: unless-stopped

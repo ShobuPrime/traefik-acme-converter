@@ -1,17 +1,57 @@
-# Use an official Alpine as a parent image
+# Multi-stage build for efficient Go application
+FROM golang:1.25-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Set working directory
+WORKDIR /build
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY *.go ./
+
+# Build the application with optimizations
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags="-w -s" \
+    -o traefik-acme-converter \
+    .
+
+# Final stage - minimal runtime image
 FROM alpine:latest
 
-# Install jq and other required packages
-RUN apk add --no-cache jq coreutils
+# Install ca-certificates for HTTPS and tzdata for timezone support
+RUN apk --no-cache add ca-certificates tzdata
 
-# Set the working directory in the container
+# Create non-root user
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser
+
+# Set working directory
 WORKDIR /app
 
-# Copy the shell script into the container
-COPY watch-and-extract.sh /app
+# Copy binary from builder
+COPY --from=builder /build/traefik-acme-converter /app/traefik-acme-converter
 
-# Make the script executable
-RUN chmod +x /app/watch-and-extract.sh
+# Create default directories
+RUN mkdir -p /traefik/certs /app/output && \
+    chown -R appuser:appuser /app /traefik/certs /app/output
 
-# Run the script when the container is started
-CMD [ "/app/watch-and-extract.sh" ]
+# Switch to non-root user (can be overridden at runtime)
+USER appuser
+
+# Set default environment variables
+ENV WATCH_DIR=/traefik/certs \
+    PROVIDER=ACME \
+    OUTPUT_DIR=/app/output \
+    USER_UID=1000 \
+    USER_GID=1000 \
+    USE_WATCHER=true
+
+# Run the application
+CMD ["/app/traefik-acme-converter"]
