@@ -14,6 +14,7 @@ This repository contains a robust Go application packaged as a Docker container 
 - **Configurable Permissions**: Set custom UID/GID for extracted certificate files
 - **Zero Dependencies**: Compiled Go binary with no runtime dependencies
 - **Small Footprint**: Multi-stage Docker build resulting in minimal image size
+- **Multi-Architecture**: Supports AMD64 (x86_64) and ARM64 (aarch64/Raspberry Pi)
 
 ## Prerequisites
 
