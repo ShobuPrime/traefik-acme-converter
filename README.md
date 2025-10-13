@@ -23,12 +23,31 @@ This repository contains a robust Go application packaged as a Docker container 
 
 ## Build
 
+### Pre-built Images (Recommended)
+
+Pull the pre-built image from Docker Hub:
+
+```bash
+# For AMD64 (x86_64)
+docker pull shobuprime/traefik-acme-converter:latest
+
+# For ARM64 (Raspberry Pi, etc.)
+docker pull shobuprime/traefik-acme-converter:latest-arm64
+```
+
+### Build Locally
+
 Clone this repository and build the Docker image:
 
 ```bash
 git clone https://github.com/shobuprime/traefik-acme-converter.git
 cd traefik-acme-converter
+
+# For AMD64
 docker build -t shobuprime/traefik-acme-converter .
+
+# For ARM64
+docker build -f Dockerfile.arm64 -t shobuprime/traefik-acme-converter .
 ```
 
 ## Usage

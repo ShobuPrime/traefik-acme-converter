@@ -16,10 +16,8 @@ RUN go mod download
 # Copy source code
 COPY *.go ./
 
-# Build the application with optimizations for target architecture
-# TARGETARCH is automatically set by Docker buildx (amd64, arm64, etc.)
-ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
+# Build the application with optimizations for AMD64
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s" \
     -o traefik-acme-converter \
     .
