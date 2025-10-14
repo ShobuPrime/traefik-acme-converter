@@ -26,7 +26,14 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
 FROM alpine:latest
 
 # Install ca-certificates for HTTPS and tzdata for timezone support
-RUN apk --no-cache add ca-certificates tzdata
+# Also install sudo for elevated privileges
+RUN apk --no-cache add ca-certificates tzdata sudo
+
+# Create non-root user with sudo privileges for chown operations
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser && \
+    echo "appuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/appuser && \
+    chmod 0440 /etc/sudoers.d/appuser
 
 # Set working directory
 WORKDIR /app
@@ -34,11 +41,13 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /build/traefik-acme-converter /app/traefik-acme-converter
 
-# Create default directories
-RUN mkdir -p /traefik/certs /app/output
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
-# Run as root by default to allow chown operations
-# Users can override with --user flag if they want to run as non-root
+# Create default directories with appropriate permissions
+RUN mkdir -p /traefik/certs /app/output && \
+    chown -R appuser:appuser /app/output
 
 # Add OCI labels for supply chain attestation
 LABEL org.opencontainers.image.source="https://github.com/ShobuPrime/traefik-acme-converter" \
@@ -55,5 +64,9 @@ ENV WATCH_DIR=/traefik/certs \
     USER_GID=1000 \
     USE_WATCHER=true
 
-# Run the application
-CMD ["/app/traefik-acme-converter"]
+# Set default non-root user for security (satisfies Docker Scout)
+# Override with --user root or user: "0:0" in docker-compose when USER_UID=0 is needed
+USER appuser
+
+# Use entrypoint script to handle user switching
+ENTRYPOINT ["/app/entrypoint.sh"]

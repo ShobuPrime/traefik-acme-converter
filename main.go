@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -384,8 +385,20 @@ func (c *CertificateConverter) extractCertificate(certData any, index int) error
 }
 
 // setOwnership sets the file ownership
+// Uses sudo if running as non-root user and needs elevated privileges
 func (c *CertificateConverter) setOwnership(path string) error {
-	return os.Chown(path, c.config.UserUID, c.config.UserGID)
+	err := os.Chown(path, c.config.UserUID, c.config.UserGID)
+	if err != nil && os.Geteuid() != 0 {
+		// Try with sudo if we're not running as root
+		cmd := exec.Command("sudo", "chown",
+			fmt.Sprintf("%d:%d", c.config.UserUID, c.config.UserGID),
+			path)
+		if sudoErr := cmd.Run(); sudoErr != nil {
+			return fmt.Errorf("chown failed: %w (sudo also failed: %v)", err, sudoErr)
+		}
+		return nil
+	}
+	return err
 }
 
 // Helper functions for environment variables

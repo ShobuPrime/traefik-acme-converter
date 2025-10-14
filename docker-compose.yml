@@ -2,6 +2,11 @@ services:
   acme-converter:
     image: shobuprime/traefik-acme-converter
     container_name: traefik-acme-converter
+
+    # Run as non-root user by default (UID 1000, GID 1000)
+    # Uncomment the line below if you need root access (USER_UID=0, USER_GID=0)
+    # user: "0:0"
+
     environment:
       # Directory containing the ACME JSON file
       - WATCH_DIR=/certs
@@ -14,6 +19,8 @@ services:
       - OUTPUT_DIR=/app/output
 
       # UID/GID for certificate file ownership
+      # Default: 1000 (runs as appuser)
+      # For root ownership: set to 0 AND uncomment user: "0:0" above
       - USER_UID=1000
       - USER_GID=1000
 
