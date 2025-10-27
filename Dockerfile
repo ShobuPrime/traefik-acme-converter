@@ -1,5 +1,5 @@
 # Multi-stage build for efficient Go application
-FROM --platform=linux/amd64 golang:1.25-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     .
 
 # Final stage - minimal runtime image
-FROM --platform=linux/amd64 alpine:latest
+FROM alpine:latest
 
 # Install ca-certificates for HTTPS and tzdata for timezone support
 # Also install sudo for elevated privileges

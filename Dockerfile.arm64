@@ -1,5 +1,6 @@
 # Multi-stage build for efficient Go application
-FROM --platform=linux/arm64 golang:1.25-alpine AS builder
+# Pin to specific digest from successful build (Oct 14, 2025)
+FROM golang:1.25-alpine@sha256:ecb803821dbac0983b03a516adb8407b7dbadfb8771434dc5162a7c471dd27a2 AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -23,7 +24,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
     .
 
 # Final stage - minimal runtime image
-FROM --platform=linux/arm64 alpine:latest
+# Pin to specific digest from successful build (Oct 14, 2025)
+FROM alpine:latest@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
 
 # Install ca-certificates for HTTPS and tzdata for timezone support
 # Also install sudo for elevated privileges
