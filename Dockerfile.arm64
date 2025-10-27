@@ -1,6 +1,6 @@
 # Multi-stage build for efficient Go application
-# Use ARM64-specific image digest to force Docker Hub to pull ARM64 base image
-FROM golang@sha256:b6f64a7a84da0455c16d24e7b12927169bf4613cc144cbb9cdd788fdca70cdb8 AS builder
+# Use AMD64 builder to cross-compile ARM64 binary (Docker Hub has no QEMU support)
+FROM golang:1.25-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -17,39 +17,30 @@ RUN go mod download
 # Copy source code
 COPY *.go ./
 
-# Build the application natively for ARM64 (image is ARM64, so Go will build for ARM64)
-RUN CGO_ENABLED=0 GOOS=linux go build \
+# Cross-compile the application for ARM64
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
     -ldflags="-w -s" \
     -o traefik-acme-converter \
     .
 
 # Final stage - minimal runtime image
-# Use ARM64-specific image digest to force Docker Hub to pull ARM64 base image
+# Use ARM64-specific Alpine digest but don't run ANY commands (avoids exec format error)
 FROM alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f
 
-# Install ca-certificates for HTTPS and tzdata for timezone support
-# Also install sudo for elevated privileges
-RUN apk --no-cache add ca-certificates tzdata sudo
+# Copy ca-certificates and tzdata from AMD64 builder stage
+# This avoids running apk commands which require /bin/sh
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-# Create non-root user with sudo privileges for chown operations
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser && \
-    echo "appuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/appuser && \
-    chmod 0440 /etc/sudoers.d/appuser
+# Copy minimal necessary files for user/group from builder
+# We'll run as root by default since we can't create users without running commands
+# Users can override with --user flag in docker run
 
 # Set working directory
 WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /build/traefik-acme-converter /app/traefik-acme-converter
-
-# Copy entrypoint script
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-
-# Create default directories with appropriate permissions
-RUN mkdir -p /traefik/certs /app/output && \
-    chown -R appuser:appuser /app/output
 
 # Add OCI labels for supply chain attestation
 LABEL org.opencontainers.image.source="https://github.com/ShobuPrime/traefik-acme-converter" \
@@ -66,9 +57,10 @@ ENV WATCH_DIR=/traefik/certs \
     USER_GID=1000 \
     USE_WATCHER=true
 
-# Set default non-root user for security (satisfies Docker Scout)
-# Override with --user root or user: "0:0" in docker-compose when USER_UID=0 is needed
-USER appuser
+# Run as root by default (can't create non-root user without running shell commands)
+# Users can override with --user flag in docker-compose
+# USER directive commented out to avoid exec format errors
+# USER root
 
-# Use entrypoint script to handle user switching
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Run the Go binary directly (no shell wrapper needed)
+ENTRYPOINT ["/app/traefik-acme-converter"]
