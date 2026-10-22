@@ -1,5 +1,5 @@
 # Multi-stage build for efficient Go application
-FROM golang:1.25-alpine AS builder
+FROM golang:1.27.3-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -23,11 +23,13 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     .
 
 # Final stage - minimal runtime image
-FROM alpine:latest
+FROM alpine:3.24
 
 # Install ca-certificates for HTTPS and tzdata for timezone support
 # Also install sudo for elevated privileges
-RUN apk --no-cache add ca-certificates tzdata sudo
+# 20261020-r0 drops the roots behind the compromised eMudhra intermediates
+# (CVE-2026-111943); the floor also busts a stale build cache.
+RUN apk --no-cache add 'ca-certificates>=20261020-r0' tzdata sudo
 
 # Create non-root user with sudo privileges for chown operations
 RUN addgroup -g 1000 appuser && \

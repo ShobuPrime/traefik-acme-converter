@@ -1,9 +1,11 @@
 # Multi-stage build for efficient Go application
 # Use AMD64 builder to cross-compile ARM64 binary (Docker Hub has no QEMU support)
-FROM golang:1.25-alpine AS builder
+FROM golang:1.27.3-alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache git ca-certificates tzdata
+# The runtime stage copies this bundle. 20261020-r0 drops the roots behind the
+# compromised eMudhra intermediates (CVE-2026-111943).
+RUN apk upgrade --no-cache && apk add --no-cache git 'ca-certificates-bundle>=20261020-r0' tzdata
 
 # Set working directory
 WORKDIR /build
@@ -25,7 +27,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
 
 # Final stage - minimal runtime image
 # Use ARM64-specific Alpine digest but don't run ANY commands (avoids exec format error)
-FROM alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f
+# alpine:3.24.3 linux/arm64
+FROM alpine@sha256:e311ae748be7f56ae5cba304bc488f0786df68ee507513f654a5cc8597cffb42
 
 # Copy ca-certificates and tzdata from AMD64 builder stage
 # This avoids running apk commands which require /bin/sh
